@@ -216,3 +216,31 @@ las interfaces de repositorio, así que cambiar de motor (p. ej. PostgreSQL) no 
   `Content-Type`; se guardan en PostgreSQL (`cover_images`) con un id aleatorio y se sirven en `/uploads/covers/<id>.<ext>` con caché inmutable; el libro guarda esa ruta relativa. La API mantiene
   `coverUrl` opcional (compatibilidad con el enunciado); es el formulario del frontend el que exige la imagen. Si la
   subida funciona pero falla la creación del libro, la imagen queda sin usar en la base (aceptable para este alcance).
+
+---
+
+## Despliegue en Render
+
+Orden: primero el backend (el frontend necesita su URL al compilar), después el frontend, y por último se
+restringe CORS en el backend con la URL del frontend. La versión de Node se toma de `.node-version` (22).
+
+**Backend — Web Service** (`https://booksapp-ul6v.onrender.com`)
+
+| Campo | Valor |
+| ----- | ----- |
+| Root Directory | `backend` |
+| Build Command | `npm install --include=dev && npm run build` |
+| Start Command | `npm start` |
+| Environment | `DATABASE_URL` (Internal URL), `JWT_SECRET`, `CORS_ORIGIN` (URL del frontend) |
+
+**Frontend — Static Site**
+
+| Campo | Valor |
+| ----- | ----- |
+| Root Directory | `frontend` |
+| Build Command | `npm install --include=dev && npm run build` |
+| Publish Directory | `dist` |
+| Redirects/Rewrites | Source `/*` → Destination `/index.html`, Action **Rewrite** (rutas de React Router) |
+
+La URL de la API se toma de [`frontend/.env.production`](frontend/.env.production) (no tiene secretos y se
+versiona); una variable `VITE_API_URL` definida en Render tiene prioridad.

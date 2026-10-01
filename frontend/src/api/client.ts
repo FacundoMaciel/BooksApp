@@ -1,4 +1,5 @@
-export const API_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000';
+// Sin barra final, para poder concatenar rutas como `${API_URL}/books`.
+export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:3000').replace(/\/+$/, '');
 
 export class ApiError extends Error {
   constructor(

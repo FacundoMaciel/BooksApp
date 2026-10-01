@@ -14,7 +14,7 @@
     "db:import-uploads": "tsx src/scripts/importUploadsToPostgres.ts"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20.12"
   },
   "dependencies": {
     "cors": "^2.8.6",

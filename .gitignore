@@ -10,3 +10,6 @@ data/
 .env
 .env.*
 !.env.example
+
+# La config de producción del frontend no tiene secretos y Render la necesita al compilar.
+!frontend/.env.production
