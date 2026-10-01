@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getServerConfig } from '../src/config';
+import { getDatabaseUrl, getServerConfig } from '../src/config';
 import { createTestApp } from './helpers';
 
 describe('Configuración del servidor', () => {
@@ -71,5 +71,34 @@ describe('CORS', () => {
     const app = await createTestApp();
     const res = await request(app).get('/health').set('Origin', 'https://otro.com');
     expect(res.headers['access-control-allow-origin']).toBe('*');
+  });
+});
+
+describe('URL de la base de datos', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const urls = { DATABASE_URL: '', DATABASE_URL_INTERNAL: 'postgresql://interna', DATABASE_URL_EXTERNAL: 'postgresql://externa.render.com' };
+
+  it('DATABASE_URL tiene prioridad', () => {
+    for (const [k, v] of Object.entries({ ...urls, DATABASE_URL: 'postgresql://principal', RENDER: 'true' })) vi.stubEnv(k, v);
+    expect(getDatabaseUrl()).toBe('postgresql://principal');
+  });
+
+  it('en Render usa la Internal URL si falta DATABASE_URL', () => {
+    for (const [k, v] of Object.entries({ ...urls, RENDER: 'true' })) vi.stubEnv(k, v);
+    expect(getDatabaseUrl()).toBe('postgresql://interna');
+  });
+
+  it('en local usa la External URL', () => {
+    for (const [k, v] of Object.entries({ ...urls, RENDER: '' })) vi.stubEnv(k, v);
+    expect(getDatabaseUrl()).toBe('postgresql://externa.render.com');
+  });
+
+  it('si falta, el error indica qué variables parecidas hay (sin valores)', () => {
+    for (const [k, v] of Object.entries({ DATABASE_URL: '', DATABASE_URL_INTERNAL: '', DATABASE_URL_EXTERNAL: '', RENDER: 'true', DATABSE_URL: 'postgresql://secreto' })) vi.stubEnv(k, v);
+    expect(() => getDatabaseUrl()).toThrow(/Render → Environment.*DATABSE_URL/);
+    expect(() => getDatabaseUrl()).not.toThrow(/secreto/);
   });
 });

@@ -8,13 +8,28 @@ export function loadEnv(): void {
 }
 
 /**
- * URL de PostgreSQL. `DATABASE_URL` tiene prioridad (p. ej. la Internal URL al desplegar en Render);
- * en local se usa `DATABASE_URL_EXTERNAL`.
+ * URL de PostgreSQL. Prioridad:
+ *   1. `DATABASE_URL`
+ *   2. En Render (define `RENDER=true`): `DATABASE_URL_INTERNAL`, que solo funciona dentro de Render.
+ *   3. `DATABASE_URL_EXTERNAL` (desarrollo local).
  */
 export function getDatabaseUrl(): string {
-  const url = process.env.DATABASE_URL ?? process.env.DATABASE_URL_EXTERNAL;
+  const env = (name: string) => process.env[name]?.trim() || undefined;
+  const onRender = Boolean(env('RENDER'));
+  const url =
+    env('DATABASE_URL') ??
+    (onRender ? env('DATABASE_URL_INTERNAL') : undefined) ??
+    env('DATABASE_URL_EXTERNAL');
+
   if (!url) {
-    throw new Error('Falta DATABASE_URL (o DATABASE_URL_EXTERNAL) en backend/.env o en el entorno.');
+    // Ayuda a detectar nombres mal escritos sin mostrar valores.
+    const similar = Object.keys(process.env)
+      .filter((key) => /DATAB|DATB|POSTGRES|^PG|(^|_)DB(_|$)/i.test(key))
+      .map((key) => (env(key) ? key : `${key} (vacía)`));
+    throw new Error(
+      `Falta la URL de PostgreSQL. Definí DATABASE_URL${onRender ? ' en Render → Environment del servicio' : ' en backend/.env'}. ` +
+        `Variables relacionadas encontradas: ${similar.length ? similar.join(', ') : 'ninguna'}.`,
+    );
   }
   return url;
 }
