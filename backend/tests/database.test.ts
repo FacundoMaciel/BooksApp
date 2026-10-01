@@ -4,7 +4,7 @@ import { createApp } from '../src/app';
 import { migrate, type Db } from '../src/db/database';
 import { migrations } from '../src/db/migrations';
 import { PgLibraryRepository } from '../src/repositories/pgLibraryRepository';
-import { SEED_BOOKS, openLibraryCover, seedLibrary } from '../src/seed';
+import { SEED_AUTHORS, SEED_BOOKS, openLibraryCover, seedLibrary } from '../src/seed';
 import { createMemoryServer } from './helpers';
 
 const auth = { jwtSecret: 'test-secret', tokenTtlSeconds: 60 };
@@ -103,5 +103,24 @@ describe('PostgreSQL', () => {
     await expect(db.query('INSERT INTO book_authors (book_id, author_id, position) VALUES (99, 99, 0)')).rejects.toThrow();
     await expect(db.query("INSERT INTO books (title, chapters, pages) VALUES ('X', 0, 10)")).rejects.toThrow();
     await expect(db.query("INSERT INTO users (name, email, password_hash) VALUES ('a', 'A@x.com', 'h')")).rejects.toThrow();
+  });
+});
+
+describe('Seed de autores', () => {
+  it('carga la información de los autores de ejemplo y completa la de los existentes sin pisar datos', async () => {
+    const db = createMemoryServer().connect();
+    await migrate(db);
+    const repo = new PgLibraryRepository(db);
+    // Un autor de ejemplo ya cargado por un usuario, con nacionalidad propia y sin años.
+    await repo.createAuthor({ name: 'Jorge Luis Borges', nationality: 'Argentino (editado)' });
+
+    await seedLibrary(repo);
+    const authors = await repo.findAllAuthors();
+
+    const borges = authors.find((a) => a.name === 'Jorge Luis Borges')!;
+    expect(borges.nationality).toBe('Argentino (editado)');
+    expect(borges.birthYear).toBe(SEED_AUTHORS['Jorge Luis Borges']!.birthYear);
+    expect(authors.find((a) => a.name === 'Isabel Allende')).toMatchObject({ nationality: 'Chile', deathYear: null });
+    expect(authors.every((a) => a.biography)).toBe(true);
   });
 });

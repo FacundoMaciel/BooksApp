@@ -38,7 +38,9 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
-    throw new ApiError(0, 'No se pudo conectar con el servidor. ¿Está levantada la API?');
+    // El detalle del navegador ("Failed to fetch", "Load failed", …) ayuda a diagnosticar.
+    const cause = error instanceof Error ? error.message : String(error);
+    throw new ApiError(0, 'No se pudo conectar con el servidor. Revisá tu conexión e intentá de nuevo.', { cause });
   }
 
   const data = await response.json().catch(() => null);
@@ -51,6 +53,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
 /** Mensaje legible para mostrar en la UI, incluyendo el primer error de validación si lo hay. */
 export function getErrorMessage(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.status === 0) {
+      const cause = (error.details as { cause?: string } | undefined)?.cause;
+      return cause ? `${error.message} (detalle: ${cause})` : error.message;
+    }
     const first = Array.isArray(error.details) ? error.details[0] : undefined;
     return first?.message ?? error.message;
   }

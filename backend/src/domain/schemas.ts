@@ -6,25 +6,60 @@ const positiveInt = (field: string) =>
     .int(`${field} debe ser un entero`)
     .positive(`${field} debe ser mayor a 0`);
 
-export const createAuthorSchema = z.object({
-  name: z.string({ error: 'name es obligatorio' }).trim().min(1, 'name no puede estar vacío'),
-});
-
-export const createBookSchema = z.object({
-  title: z.string({ error: 'title es obligatorio' }).trim().min(1, 'title no puede estar vacío'),
-  chapters: positiveInt('chapters'),
-  pages: positiveInt('pages'),
-  // URL externa http(s) o ruta de una portada subida con POST /uploads/covers.
-  coverUrl: z
+/** URL externa http(s) o ruta de una imagen subida con POST /uploads/covers. Opcional. */
+const imageUrl = (field: string) =>
+  z
     .union(
       [
         z.url({ protocol: /^https?$/ }),
         z.string().regex(/^\/uploads\/covers\/[0-9a-f-]{36}\.(jpg|png|gif|webp)$/),
       ],
-      { error: 'coverUrl debe ser una URL http(s) válida o una portada subida' },
+      { error: `${field} debe ser una URL http(s) válida o una imagen subida` },
     )
     .nullish()
-    .transform((url) => url ?? null),
+    .transform((url) => url ?? null);
+
+/** Texto opcional: se recorta y "" se guarda como null. */
+const optionalText = (field: string, max: number) =>
+  z
+    .string({ error: `${field} debe ser un texto` })
+    .trim()
+    .max(max, `${field} no puede superar ${max} caracteres`)
+    .nullish()
+    .transform((text) => text || null);
+
+const optionalYear = (field: string) =>
+  z
+    .number({ error: `${field} debe ser un número` })
+    .int(`${field} debe ser un entero`)
+    .min(1, `${field} debe ser mayor a 0`)
+    .max(new Date().getFullYear(), `${field} no puede ser posterior al año actual`)
+    .nullish()
+    .transform((year) => year ?? null);
+
+export const createAuthorSchema = z
+  .object({
+    name: z
+      .string({ error: 'name es obligatorio' })
+      .trim()
+      .min(1, 'name no puede estar vacío')
+      .max(120, 'name no puede superar 120 caracteres'),
+    nationality: optionalText('nationality', 60),
+    birthYear: optionalYear('birthYear'),
+    deathYear: optionalYear('deathYear'),
+    biography: optionalText('biography', 1000),
+    photoUrl: imageUrl('photoUrl'),
+  })
+  .refine((a) => a.birthYear === null || a.deathYear === null || a.deathYear >= a.birthYear, {
+    message: 'deathYear no puede ser anterior a birthYear',
+    path: ['deathYear'],
+  });
+
+export const createBookSchema = z.object({
+  title: z.string({ error: 'title es obligatorio' }).trim().min(1, 'title no puede estar vacío'),
+  chapters: positiveInt('chapters'),
+  pages: positiveInt('pages'),
+  coverUrl: imageUrl('coverUrl'),
   authorIds: z
     .array(positiveInt('authorIds[]'), { error: 'authorIds debe ser un arreglo de ids' })
     .min(1, 'El libro debe tener al menos un autor')

@@ -1,15 +1,16 @@
-import type { AuthorWithBooks, BookWithAuthors, PagesPerChapter } from '../domain/entities';
+import type { Author, AuthorSummary, AuthorWithBooks, BookWithAuthors, PagesPerChapter } from '../domain/entities';
 import { NotFoundError } from '../domain/errors';
 import type { CreateAuthorInput, CreateBookInput } from '../domain/schemas';
 import type { LibraryRepository } from '../repositories/libraryRepository';
 
 const isDefined = <T>(value: T | undefined): value is T => value !== undefined;
+const toSummary = ({ id, name }: Author): AuthorSummary => ({ id, name });
 
 export class LibraryService {
   constructor(private readonly repo: LibraryRepository) {}
 
   async createAuthor(input: CreateAuthorInput): Promise<AuthorWithBooks> {
-    const author = await this.repo.createAuthor({ name: input.name });
+    const author = await this.repo.createAuthor(input);
     return { ...author, books: [] };
   }
 
@@ -41,7 +42,7 @@ export class LibraryService {
     }
 
     const book = await this.repo.createBook(data, authorIds);
-    return { ...book, authors };
+    return { ...book, authors: authors.map(toSummary) };
   }
 
   async listBooks(): Promise<BookWithAuthors[]> {
@@ -57,7 +58,8 @@ export class LibraryService {
       authors: relations
         .filter((r) => r.bookId === book.id)
         .map((r) => authorsById.get(r.authorId))
-        .filter(isDefined),
+        .filter(isDefined)
+        .map(toSummary),
     }));
   }
 

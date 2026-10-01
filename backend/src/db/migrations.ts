@@ -51,4 +51,13 @@ export const migrations: string[] = [
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
   );
   `,
+
+  // 3 — información opcional de los autores
+  `
+  ALTER TABLE authors ADD COLUMN nationality TEXT;
+  ALTER TABLE authors ADD COLUMN birth_year INTEGER;
+  ALTER TABLE authors ADD COLUMN death_year INTEGER;
+  ALTER TABLE authors ADD COLUMN biography TEXT;
+  ALTER TABLE authors ADD COLUMN photo_url TEXT;
+  `,
 ];

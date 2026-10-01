@@ -7,10 +7,25 @@ export interface Book {
   coverUrl: string | null;
 }
 
-export interface Author {
+/** Información opcional de un autor. */
+export interface AuthorInfo {
+  nationality: string | null;
+  birthYear: number | null;
+  deathYear: number | null;
+  biography: string | null;
+  /** URL de la foto (externa o subida con POST /uploads/covers). */
+  photoUrl: string | null;
+}
+
+export interface Author extends AuthorInfo {
   id: number;
   name: string;
 }
+
+/** Datos mínimos del autor que se incluyen en cada libro. */
+export type AuthorSummary = Pick<Author, 'id' | 'name'>;
+
+export type NewAuthor = Pick<Author, 'name'> & Partial<AuthorInfo>;
 
 /** Tabla intermedia de la relación Many-to-Many entre libros y autores. */
 export interface BookAuthor {
@@ -19,7 +34,7 @@ export interface BookAuthor {
 }
 
 export interface BookWithAuthors extends Book {
-  authors: Author[];
+  authors: AuthorSummary[];
 }
 
 export interface AuthorWithBooks extends Author {

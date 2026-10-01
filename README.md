@@ -39,8 +39,9 @@ npm run build
 | Ruta        | Contenido                                                                 |
 | ----------- | ------------------------------------------------------------------------- |
 | `/`         | Home: **bienvenida** (personalizada si hay sesión) y debajo un **carrusel de portadas** (deslizable, flechas, avance automático pausable) |
-| `/libros`   | Catálogo: solo las cards de libros (autores, capítulos, páginas, pág./cap. y extensión de lectura), desde `GET /books` |
-| `/autores`  | Autores: cada uno con iniciales, cantidad de libros, páginas totales y sus libros con portada (orden alfabético) |
+| `/libros`   | Catálogo: solo las cards de libros (portada, autores, capítulos, páginas, pág./cap. y extensión de lectura), desde `GET /books` |
+| `/autores`  | Autores: foto (o iniciales), nacionalidad, años, biografía, cantidad de libros, páginas totales y sus libros con portada (orden alfabético) |
+| `/autores/nuevo` | Formulario de autor: nombre (obligatorio), nacionalidad, años de nacimiento y fallecimiento, biografía y foto — **requiere sesión** |
 | `/lista`    | Ejercicio 1 — **requiere sesión** (redirige a login y vuelve)             |
 | `/libros/nuevo` | Formulario para agregar un libro: **portada obligatoria** (click o arrastrar, vista previa), selección o creación de autores — **requiere sesión** |
 | `/login`    | Inicio de sesión                                                          |
@@ -99,7 +100,7 @@ para hosts remotos; los locales (`localhost`) y la Internal URL de Render (sin d
 | Tabla               | Columnas                                                                 |
 | ------------------- | ------------------------------------------------------------------------ |
 | `users`             | `id`, `name`, `email` (único, guardado en minúsculas), `password_hash`, `created_at` |
-| `authors`           | `id`, `name`, `created_at`                                               |
+| `authors`           | `id`, `name`, `nationality`, `birth_year`, `death_year`, `biography`, `photo_url` (opcionales), `created_at` |
 | `books`             | `id`, `title`, `chapters` (> 0), `pages` (> 0), `cover_url` (opcional), `created_at` |
 | `book_authors`      | `book_id` → books, `author_id` → authors, `position` (orden de los autores); PK compuesta, `ON DELETE CASCADE` |
 | `cover_images`      | `id` (UUID), `mime_type`, `size`, `data` (BYTEA), `created_at`: portadas subidas |
@@ -130,7 +131,7 @@ de desarrollo para este script (fijado en la v11 por sus binarios precompilados 
 | ------ | ------------------------------------- | -------------------------------------------------- |
 | POST   | `/books`                              | Crea un libro con sus autores (`coverUrl` opcional: URL http(s) o la `url` devuelta por `/uploads/covers`) — 🔒 requiere token |
 | GET    | `/books`                              | Lista los libros con sus autores                   |
-| POST   | `/authors`                            | Crea un autor — 🔒 requiere token                  |
+| POST   | `/authors`                            | Crea un autor: `name` + opcionales `nationality`, `birthYear`, `deathYear`, `biography`, `photoUrl` — 🔒 requiere token |
 | GET    | `/authors`                            | Lista los autores con sus libros                   |
 | GET    | `/books/:id/average-pages-per-chapter`| Promedio de páginas por capítulo de un libro       |
 | GET    | `/health`                             | Healthcheck                                        |

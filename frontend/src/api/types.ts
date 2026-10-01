@@ -1,7 +1,18 @@
+export interface AuthorInfo {
+  nationality: string | null;
+  birthYear: number | null;
+  deathYear: number | null;
+  biography: string | null;
+  photoUrl: string | null;
+}
+
+/** Resumen del autor (así viene dentro de cada libro). */
 export interface Author {
   id: number;
   name: string;
 }
+
+export type NewAuthor = { name: string } & Partial<{ [K in keyof AuthorInfo]: Exclude<AuthorInfo[K], null> }>;
 
 export interface Book {
   id: number;
@@ -12,7 +23,8 @@ export interface Book {
   authors: Author[];
 }
 
-export interface AuthorWithBooks extends Author {
+/** Autor completo, como lo devuelve GET /authors. */
+export interface AuthorWithBooks extends Author, AuthorInfo {
   books: Omit<Book, 'authors'>[];
 }
 

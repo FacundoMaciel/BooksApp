@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { Author, AuthorWithBooks, AuthResponse, Book, NewBook, User } from './types';
+import type { AuthorWithBooks, AuthResponse, Book, NewAuthor, NewBook, User } from './types';
 
 export const booksApi = {
   list: (signal?: AbortSignal) => apiFetch<Book[]>('/books', { signal }),
@@ -8,11 +8,12 @@ export const booksApi = {
 
 export const authorsApi = {
   list: (signal?: AbortSignal) => apiFetch<AuthorWithBooks[]>('/authors', { signal }),
-  create: (name: string, token: string) => apiFetch<Author>('/authors', { method: 'POST', body: { name }, token }),
+  create: (author: NewAuthor, token: string) =>
+    apiFetch<AuthorWithBooks>('/authors', { method: 'POST', body: author, token }),
 };
 
 export const uploadsApi = {
-  /** Sube una imagen de portada y devuelve su URL (ruta relativa a la API). */
+  /** Sube una imagen (portada o foto) y devuelve su URL (ruta relativa a la API). */
   cover: (file: File, token: string) => {
     const form = new FormData();
     form.append('cover', file);

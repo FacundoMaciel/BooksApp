@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import type { Book } from '../api/types';
 import { useAuth } from '../auth/authContext';
+import { BookCover } from '../components/BookCover';
 import { Alert, Spinner, buttonStyles } from '../components/ui';
 import { booksApi } from '../api/endpoints';
 import { useResource } from '../hooks/useResource';
@@ -25,28 +26,36 @@ function BookCard({ book }: { book: Book }) {
         aria-labelledby={`book-${book.id}`}
         className="flex h-full flex-col rounded-xl border border-zinc-200 bg-white p-5 transition-shadow hover:shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
       >
-        <span className={`self-start rounded-full px-2 py-0.5 text-xs font-medium ${length.className}`}>
-          {length.label}
-        </span>
-        <h2 id={`book-${book.id}`} className="mt-3 text-base font-semibold tracking-tight">
-          {book.title}
-        </h2>
-
-        <p className="mt-3 text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
-          {book.authors.length === 1 ? 'Autor' : 'Autores'}
-        </p>
         {/* flex-1 empuja las estadísticas al pie aunque los títulos tengan distinto largo. */}
-        <ul className="mt-1.5 flex flex-1 flex-wrap content-start items-start gap-1.5">
-          {book.authors.length === 0 && <li className="text-sm text-zinc-500">Desconocido</li>}
-          {book.authors.map((author) => (
-            <li
-              key={author.id}
-              className="rounded-md bg-zinc-100 px-2 py-0.5 text-sm text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-            >
-              {author.name}
-            </li>
-          ))}
-        </ul>
+        <div className="flex flex-1 gap-4">
+          <BookCover
+            book={book}
+            className="aspect-[2/3] w-24 shrink-0 self-start rounded-md shadow-sm ring-1 ring-zinc-900/5 sm:w-28 dark:ring-white/10"
+          />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className={`self-start rounded-full px-2 py-0.5 text-xs font-medium ${length.className}`}>
+              {length.label}
+            </span>
+            <h2 id={`book-${book.id}`} className="mt-2 text-base font-semibold tracking-tight">
+              {book.title}
+            </h2>
+
+            <p className="mt-3 text-xs font-medium tracking-wide text-zinc-500 uppercase dark:text-zinc-400">
+              {book.authors.length === 1 ? 'Autor' : 'Autores'}
+            </p>
+            <ul className="mt-1.5 flex flex-wrap content-start items-start gap-1.5">
+              {book.authors.length === 0 && <li className="text-sm text-zinc-500">Desconocido</li>}
+              {book.authors.map((author) => (
+                <li
+                  key={author.id}
+                  className="rounded-md bg-zinc-100 px-2 py-0.5 text-sm text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                >
+                  {author.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
         <dl className="mt-5 grid grid-cols-3 gap-2 border-t border-zinc-100 pt-4 text-center dark:border-zinc-800">
           {[

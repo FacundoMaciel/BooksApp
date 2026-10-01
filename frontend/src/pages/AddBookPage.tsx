@@ -83,7 +83,7 @@ export function AddBookPage() {
     setCreatingAuthor(true);
     setFormError(null);
     try {
-      const author = await authorsApi.create(name, token);
+      const author = await authorsApi.create({ name }, token);
       setAuthors((prev) => [...(prev ?? []), author]);
       toggleAuthor(author.id);
       setNewAuthor('');

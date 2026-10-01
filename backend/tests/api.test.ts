@@ -43,10 +43,53 @@ describe('API Libros y Autores', () => {
   });
 
   describe('POST /authors', () => {
-    it('crea un autor', async () => {
+    const emptyInfo = { nationality: null, birthYear: null, deathYear: null, biography: null, photoUrl: null };
+
+    it('crea un autor solo con el nombre (la información es opcional)', async () => {
       const res = await createAuthor('Gabriel García Márquez');
       expect(res.status).toBe(201);
-      expect(res.body).toEqual({ id: 1, name: 'Gabriel García Márquez', books: [] });
+      expect(res.body).toEqual({ id: 1, name: 'Gabriel García Márquez', ...emptyInfo, books: [] });
+    });
+
+    it('crea un autor con toda su información y la devuelve en el listado', async () => {
+      const info = {
+        name: '  Julio Cortázar ',
+        nationality: ' Argentina ',
+        birthYear: 1914,
+        deathYear: 1984,
+        biography: 'Autor de Rayuela.',
+        photoUrl: '/uploads/covers/0b6f2c1e-1111-4222-8333-944445555666.jpg',
+      };
+      const res = await post('/authors').send(info);
+      expect(res.status).toBe(201);
+      expect(res.body).toEqual({ ...info, id: 1, name: 'Julio Cortázar', nationality: 'Argentina', books: [] });
+
+      const list = await request(app).get('/authors');
+      expect(list.body[0]).toEqual(res.body);
+    });
+
+    it('guarda como null los textos vacíos', async () => {
+      const res = await post('/authors').send({ name: 'X', nationality: '   ', biography: '' });
+      expect(res.body).toMatchObject({ nationality: null, biography: null });
+    });
+
+    it.each([
+      [{ name: 'X', birthYear: 1990, deathYear: 1980 }, /anterior/],
+      [{ name: 'X', birthYear: new Date().getFullYear() + 1 }, /posterior al año actual/],
+      [{ name: 'X', birthYear: 1950.5 }, /entero/],
+      [{ name: 'X', biography: 'a'.repeat(1001) }, /1000/],
+      [{ name: 'X', photoUrl: 'javascript:alert(1)' }, /photoUrl/],
+    ])('valida la información del autor %#', async (body, message) => {
+      const res = await post('/authors').send(body);
+      expect(res.status).toBe(400);
+      expect(JSON.stringify(res.body.details)).toMatch(message);
+    });
+
+    it('en los libros cada autor viene resumido (id y nombre)', async () => {
+      await post('/authors').send({ name: 'Borges', nationality: 'Argentina', birthYear: 1899 });
+      await post('/books').send({ title: 'Ficciones', chapters: 17, pages: 224, authorIds: [1] });
+      const books = await request(app).get('/books');
+      expect(books.body[0].authors).toEqual([{ id: 1, name: 'Borges' }]);
     });
 
     it('rechaza un nombre vacío', async () => {

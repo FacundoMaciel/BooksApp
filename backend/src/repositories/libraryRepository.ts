@@ -1,11 +1,13 @@
-import type { Author, Book, BookAuthor } from '../domain/entities';
+import type { Author, AuthorInfo, Book, BookAuthor, NewAuthor } from '../domain/entities';
 
 /**
  * Contrato del repositorio. Los servicios dependen de esta interfaz y no del
  * motor de base de datos concreto.
  */
 export interface LibraryRepository {
-  createAuthor(data: Omit<Author, 'id'>): Promise<Author>;
+  createAuthor(data: NewAuthor): Promise<Author>;
+  /** Completa solo los campos de información que el autor todavía no tiene. */
+  fillAuthorInfo(id: number, info: Partial<AuthorInfo>): Promise<void>;
   findAllAuthors(): Promise<Author[]>;
   findAuthorsByIds(ids: number[]): Promise<Author[]>;
 

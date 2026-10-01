@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router';
 import { RequireAuth } from './auth/RequireAuth';
 import { Layout } from './components/layout/Layout';
+import { AddAuthorPage } from './pages/AddAuthorPage';
 import { AddBookPage } from './pages/AddBookPage';
 import { AuthorsPage } from './pages/AuthorsPage';
 import { BooksPage } from './pages/BooksPage';
@@ -30,6 +31,14 @@ export default function App() {
           element={
             <RequireAuth>
               <AddBookPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="autores/nuevo"
+          element={
+            <RequireAuth>
+              <AddAuthorPage />
             </RequireAuth>
           }
         />

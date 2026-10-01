@@ -150,7 +150,7 @@ describe('Página de libros', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Error interno');
     await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByText('Ficciones')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ficciones' })).toBeInTheDocument();
   });
 });
 
@@ -305,7 +305,7 @@ describe('Agregar libro', () => {
     await user.type(screen.getByLabelText('Capítulos'), '1');
     await user.type(screen.getByLabelText('Páginas'), '128');
     await user.upload(screen.getByLabelText('Imagen de portada'), coverFile());
-    expect(screen.getByAltText('Vista previa de la portada')).toBeInTheDocument();
+    expect(screen.getByAltText('Vista previa: portada')).toBeInTheDocument();
     expect(screen.getByText('portada.png')).toBeInTheDocument();
     await user.click(await screen.findByLabelText('Adolfo Bioy Casares'));
     await user.click(screen.getByRole('button', { name: 'Guardar libro' }));
@@ -341,7 +341,7 @@ describe('Agregar libro', () => {
     const big = new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'enorme.png', { type: 'image/png' });
     await user.upload(input, big);
     expect(screen.getByText('La imagen no puede superar 2 MB.')).toBeInTheDocument();
-    expect(screen.queryByAltText('Vista previa de la portada')).not.toBeInTheDocument();
+    expect(screen.queryByAltText('Vista previa: portada')).not.toBeInTheDocument();
   });
 
   it('permite crear un autor nuevo y lo deja seleccionado', async () => {
@@ -443,5 +443,156 @@ describe('Página de autores', () => {
     await user.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('link', { name: 'Autores' }));
     expect(screen.getByRole('heading', { level: 1, name: 'Autores' })).toBeInTheDocument();
     expect(await screen.findByText('Todavía no hay autores cargados.')).toBeInTheDocument();
+  });
+});
+
+describe('Formulario de nuevo autor', () => {
+  const existing = [
+    {
+      id: 1,
+      name: 'Julio Cortázar',
+      nationality: 'Argentina',
+      birthYear: 1914,
+      deathYear: 1984,
+      biography: 'Autor de Rayuela.',
+      photoUrl: null,
+      books: [],
+    },
+    { id: 2, name: 'Silvina Ocampo', nationality: null, birthYear: null, deathYear: null, biography: null, photoUrl: null, books: [] },
+  ];
+  const session = () => {
+    localStorage.setItem('auth_token', 'fake-token');
+    return { 'GET /auth/me': () => ({ status: 200, body: authResponse.user }) };
+  };
+  const photoFile = () => new File([new Uint8Array([0xff, 0xd8, 0xff])], 'foto.jpg', { type: 'image/jpeg' });
+  const photoUrl = '/uploads/covers/0b6f2c1e-1111-4222-8333-944445555666.jpg';
+
+  it('sin sesión, el botón lleva al login y después vuelve al formulario', async () => {
+    mockApi({
+      'GET /authors': () => ({ status: 200, body: existing }),
+      'POST /auth/login': () => ({ status: 200, body: authResponse }),
+    });
+    const user = userEvent.setup();
+    renderApp('/autores');
+
+    await user.click(await screen.findByRole('link', { name: 'Inicia sesión para agregar' }));
+    await user.type(screen.getByLabelText('Email'), 'ada@example.com');
+    await user.type(screen.getByLabelText('Contraseña'), 'supersegura');
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+
+    expect(await screen.findByRole('heading', { name: 'Nuevo autor' })).toBeInTheDocument();
+  });
+
+  it('crea el autor con toda su información y foto, y lo muestra en la lista', async () => {
+    let created: Record<string, unknown> | undefined;
+    const fetchMock = mockApi({
+      ...session(),
+      'GET /authors': () => ({
+        status: 200,
+        body: created ? [...existing, { id: 3, ...created, books: [] }] : existing,
+      }),
+      'POST /uploads/covers': () => ({ status: 201, body: { url: photoUrl } }),
+      'POST /authors': (init) => {
+        created = JSON.parse(init!.body as string);
+        return { status: 201, body: { id: 3, ...created, books: [] } };
+      },
+    });
+    const user = userEvent.setup();
+    renderApp('/autores');
+
+    await user.click(await screen.findByRole('link', { name: '+ Nuevo autor' }));
+    await user.type(await screen.findByLabelText('Nombre'), '  Adolfo   Bioy Casares ');
+    await user.type(screen.getByLabelText('Nacionalidad'), 'Argentina');
+    await user.type(screen.getByLabelText('Año de nacimiento'), '1914');
+    await user.type(screen.getByLabelText('Año de fallecimiento'), '1999');
+    await user.type(screen.getByLabelText('Biografía'), 'Autor de La invención de Morel.');
+    await user.upload(screen.getByLabelText('Foto del autor'), photoFile());
+    expect(screen.getByAltText('Vista previa: foto')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Guardar autor' }));
+
+    expect(await screen.findByText(/Se agregó «Adolfo Bioy Casares»/)).toBeInTheDocument();
+    expect(created).toEqual({
+      name: 'Adolfo Bioy Casares',
+      nationality: 'Argentina',
+      birthYear: 1914,
+      deathYear: 1999,
+      biography: 'Autor de La invención de Morel.',
+      photoUrl,
+    });
+    const posts = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST');
+    expect(posts.map(([url]) => new URL(url).pathname)).toEqual(['/uploads/covers', '/authors']);
+
+    const card = within(await screen.findByRole('article', { name: 'Adolfo Bioy Casares' }));
+    expect(card.getByText('Argentina · 1914 – 1999')).toBeInTheDocument();
+    expect(card.getByText('Autor de La invención de Morel.')).toBeInTheDocument();
+    expect(card.getByRole('img', { name: 'Foto de Adolfo Bioy Casares' })).toHaveAttribute(
+      'src',
+      `http://localhost:3000${photoUrl}`,
+    );
+  });
+
+  it('solo el nombre es obligatorio: sin foto no sube nada y no manda campos vacíos', async () => {
+    let created: unknown;
+    const fetchMock = mockApi({
+      ...session(),
+      'GET /authors': () => ({ status: 200, body: existing }),
+      'POST /authors': (init) => {
+        created = JSON.parse(init!.body as string);
+        return { status: 201, body: { id: 3, name: 'Horacio Quiroga', books: [] } };
+      },
+    });
+    const user = userEvent.setup();
+    renderApp('/autores/nuevo');
+
+    await user.type(await screen.findByLabelText('Nombre'), 'Horacio Quiroga{Enter}');
+
+    expect(await screen.findByText(/Se agregó «Horacio Quiroga»/)).toBeInTheDocument();
+    expect(created).toEqual({ name: 'Horacio Quiroga' });
+    expect(fetchMock.mock.calls.some(([url]) => new URL(url).pathname === '/uploads/covers')).toBe(false);
+  });
+
+  it('valida el nombre, los duplicados y los años antes de enviar', async () => {
+    const fetchMock = mockApi({ ...session(), 'GET /authors': () => ({ status: 200, body: existing }) });
+    const user = userEvent.setup();
+    renderApp('/autores/nuevo');
+
+    const save = await screen.findByRole('button', { name: 'Guardar autor' });
+    await user.click(save);
+    expect(screen.getByText('El nombre es obligatorio.')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Nombre'), 'julio cortazar');
+    await user.type(screen.getByLabelText('Año de nacimiento'), '1990');
+    await user.type(screen.getByLabelText('Año de fallecimiento'), '1980');
+    await user.click(save);
+
+    expect(screen.getByText('Ya existe un autor llamado «julio cortazar».')).toBeInTheDocument();
+    expect(screen.getByText('No puede ser anterior al año de nacimiento.')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('si la sesión venció al guardar, pide iniciarla de nuevo', async () => {
+    mockApi({
+      ...session(),
+      'GET /authors': () => ({ status: 200, body: existing }),
+      'POST /authors': () => ({ status: 401, body: { error: 'Token inválido o expirado' } }),
+    });
+    const user = userEvent.setup();
+    renderApp('/autores/nuevo');
+
+    await user.type(await screen.findByLabelText('Nombre'), 'Horacio Quiroga{Enter}');
+
+    expect(await screen.findByRole('heading', { name: 'Iniciar sesión' })).toBeInTheDocument();
+    expect(localStorage.getItem('auth_token')).toBeNull();
+  });
+});
+
+describe('Portadas en la página de libros', () => {
+  it('cada card muestra la imagen del libro', async () => {
+    const coverUrl = 'https://covers.openlibrary.org/b/id/10832290-M.jpg';
+    mockApi({ 'GET /books': () => ({ status: 200, body: [{ ...books[0], coverUrl }] }) });
+    renderApp('/libros');
+
+    const card = within(await screen.findByRole('article', { name: 'Ficciones' }));
+    expect(card.getByRole('img', { name: 'Portada de Ficciones' })).toHaveAttribute('src', coverUrl);
   });
 });
