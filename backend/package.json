@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "db:migrate-sqlite": "tsx src/scripts/migrateSqliteToPostgres.ts"
+    "db:migrate-sqlite": "tsx src/scripts/migrateSqliteToPostgres.ts",
+    "db:import-uploads": "tsx src/scripts/importUploadsToPostgres.ts"
   },
   "engines": {
     "node": ">=16"

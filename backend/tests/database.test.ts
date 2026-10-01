@@ -1,4 +1,3 @@
-import { newDb } from 'pg-mem';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
@@ -6,18 +5,13 @@ import { migrate, type Db } from '../src/db/database';
 import { migrations } from '../src/db/migrations';
 import { PgLibraryRepository } from '../src/repositories/pgLibraryRepository';
 import { SEED_BOOKS, openLibraryCover, seedLibrary } from '../src/seed';
+import { createMemoryServer } from './helpers';
 
 const auth = { jwtSecret: 'test-secret', tokenTtlSeconds: 60 };
 const account = { name: 'Ada', email: 'ada@example.com', password: 'supersegura' };
 
-/** Una "base" pg-mem y la posibilidad de abrirle varias conexiones (como reinicios del servidor). */
-function memoryServer() {
-  const mem = newDb();
-  return () => {
-    const { Pool } = mem.adapters.createPg();
-    return new Pool() as Db;
-  };
-}
+/** Una base pg-mem; cada llamada abre una conexión nueva (como un reinicio del servidor). */
+const memoryServer = () => createMemoryServer().connect;
 
 describe('PostgreSQL', () => {
   it('cuentas, sesión y datos sobreviven a un reinicio del servidor', async () => {

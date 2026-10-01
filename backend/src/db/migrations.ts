@@ -40,4 +40,15 @@ export const migrations: string[] = [
 
   CREATE INDEX idx_book_authors_author ON book_authors(author_id);
   `,
+
+  // 2 — portadas subidas, guardadas en la base (el disco de Render no es persistente)
+  `
+  CREATE TABLE cover_images (
+    id         UUID        PRIMARY KEY,
+    mime_type  TEXT        NOT NULL CHECK (mime_type IN ('image/jpeg', 'image/png', 'image/gif', 'image/webp')),
+    size       INTEGER     NOT NULL CHECK (size > 0),
+    data       BYTEA       NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
+  `,
 ];

@@ -1,10 +1,8 @@
 import cors from 'cors';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import express, { type Express } from 'express';
 import type { Db } from './db/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { PgCoverRepository } from './repositories/pgCoverRepository';
 import { PgLibraryRepository } from './repositories/pgLibraryRepository';
 import { PgUserRepository } from './repositories/pgUserRepository';
 import { authRouter } from './routes/auth';
@@ -19,8 +17,8 @@ export interface AppDeps {
   /** Pool de PostgreSQL con las migraciones ya aplicadas. */
   db: Db;
   auth: AuthConfig;
-  /** Carpeta de archivos subidos; por defecto una temporal (tests). */
-  uploadsDir: string;
+  /** Orígenes permitidos por CORS; vacío o ausente = cualquiera (tests). */
+  corsOrigins: string[];
 }
 
 export const defaultAuthConfig: AuthConfig = {
@@ -31,11 +29,10 @@ export const defaultAuthConfig: AuthConfig = {
 export function createApp(deps: Pick<AppDeps, 'db'> & Partial<AppDeps>): Express {
   const libraryService = new LibraryService(new PgLibraryRepository(deps.db));
   const authService = new AuthService(new PgUserRepository(deps.db), deps.auth ?? defaultAuthConfig);
-  const uploadsDir = deps.uploadsDir ?? mkdtempSync(join(tmpdir(), 'libros-uploads-'));
-  const coverStorage = new CoverStorage(join(uploadsDir, 'covers'));
+  const coverStorage = new CoverStorage(new PgCoverRepository(deps.db));
   const app = express();
 
-  app.use(cors());
+  app.use(cors(deps.corsOrigins?.length ? { origin: deps.corsOrigins } : undefined));
   app.use(express.json());
 
   app.get('/health', (_req, res) => {
@@ -44,7 +41,7 @@ export function createApp(deps: Pick<AppDeps, 'db'> & Partial<AppDeps>): Express
   app.use('/auth', authRouter(authService));
   app.use('/books', booksRouter(libraryService, authService));
   app.use('/authors', authorsRouter(libraryService, authService));
-  app.use('/uploads', uploadsRouter(coverStorage, authService, uploadsDir));
+  app.use('/uploads', uploadsRouter(coverStorage, authService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

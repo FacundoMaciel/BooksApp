@@ -47,7 +47,7 @@ npm run build
 | `/register` | Registro                                                                  |
 
 Navbar con login/registro (menú hamburguesa en móvil) y footer con navegación. La sesión (JWT) se guarda
-en `localStorage` y se valida con `GET /auth/me` al recargar. URL de la API configurable con `VITE_API_URL`
+en `localStorage` y se valida con `GET /auth/me` al recargar. URL de la API configurable con `VITE_API_URL` (en `frontend/.env`, ver `frontend/.env.example`)
 (por defecto `http://localhost:3000`), así que la API debe estar levantada para ver libros e iniciar sesión.
 
 **Estructura**
@@ -85,8 +85,9 @@ del entorno tienen prioridad.
 | `DATABASE_URL_EXTERNAL` | —                     | URL de PostgreSQL para correr en local (External URL de Render) |
 | `DATABASE_URL`          | —                     | Si está, tiene prioridad (p. ej. la Internal URL al desplegar en Render) |
 | `PORT`                  | `3000`                | Puerto HTTP                                                   |
-| `UPLOADS_DIR`           | `data/uploads`        | Carpeta de las portadas subidas (se sirven en `/uploads/covers/...`) |
-| `JWT_SECRET`            | secreto de desarrollo | Clave para firmar tokens. **Definirla en producción**         |
+| `JWT_SECRET`            | secreto de desarrollo | Clave para firmar tokens (mín. 32 caracteres). **Obligatoria si `NODE_ENV=production`** |
+| `JWT_TTL_SECONDS`       | `604800` (7 días)     | Duración de la sesión                                         |
+| `CORS_ORIGIN`           | cualquiera            | Orígenes permitidos, separados por coma (p. ej. `http://localhost:5173`) |
 | `SEED`                  | `true`                | `false` para no cargar el catálogo de ejemplo                 |
 | `PGSSLMODE`             | —                     | `disable` para conectar sin SSL (p. ej. un Postgres local)    |
 
@@ -101,6 +102,7 @@ para hosts remotos; los locales (`localhost`) y la Internal URL de Render (sin d
 | `authors`           | `id`, `name`, `created_at`                                               |
 | `books`             | `id`, `title`, `chapters` (> 0), `pages` (> 0), `cover_url` (opcional), `created_at` |
 | `book_authors`      | `book_id` → books, `author_id` → authors, `position` (orden de los autores); PK compuesta, `ON DELETE CASCADE` |
+| `cover_images`      | `id` (UUID), `mime_type`, `size`, `data` (BYTEA), `created_at`: portadas subidas |
 | `schema_migrations` | versiones de esquema aplicadas                                           |
 
 - Esquema versionado en [`src/db/migrations.ts`](backend/src/db/migrations.ts): al arrancar se aplican las
@@ -115,6 +117,7 @@ para hosts remotos; los locales (`localhost`) y la Internal URL de Render (sin d
 ```bash
 npm run db:migrate-sqlite               # copia backend/data/library.db a Postgres (debe estar vacío)
 npm run db:migrate-sqlite -- --replace  # vacía antes las tablas de Postgres
+npm run db:import-uploads               # importa las portadas de backend/data/uploads/covers (conserva sus URLs)
 ```
 
 Conserva ids, fechas, hashes de contraseña (las cuentas siguen funcionando) y el orden de los autores; todo en
@@ -202,7 +205,7 @@ las interfaces de repositorio, así que cambiar de motor (p. ej. PostgreSQL) no 
 
 ### Supuestos y aclaraciones
 
-- **Almacenamiento**: PostgreSQL en Render (ver [Persistencia](#persistencia-postgresql)). Las portadas subidas quedan en disco (`UPLOADS_DIR`). Los ids son autoincrementales.
+- **Almacenamiento**: PostgreSQL en Render (ver [Persistencia](#persistencia-postgresql)). Las portadas subidas también se guardan en la base (tabla `cover_images`), así funcionan en Render, donde el disco no es persistente. Los ids son autoincrementales.
 - **Autores al crear un libro**: se envían como `authorIds` (autores ya existentes). Se exige al menos uno,
   se ignoran ids duplicados y, si alguno no existe, se responde 404 sin crear el libro.
 - `chapters` y `pages` deben ser **enteros positivos** (esto además evita la división por cero en el promedio).
@@ -210,6 +213,6 @@ las interfaces de repositorio, así que cambiar de motor (p. ej. PostgreSQL) no 
 - El promedio se redondea con `toFixed(2)` y, como pide el enunciado, tanto el id como el promedio se devuelven como **string**.
 - En los listados anidados (libros de un autor / autores de un libro) no se repite la relación inversa, para evitar respuestas circulares.
 - **Portadas subidas**: el formato se valida por el contenido del archivo (firma binaria), no por el nombre ni el
-  `Content-Type`; se guardan con nombre aleatorio en `UPLOADS_DIR` y la base guarda la ruta relativa. La API mantiene
+  `Content-Type`; se guardan en PostgreSQL (`cover_images`) con un id aleatorio y se sirven en `/uploads/covers/<id>.<ext>` con caché inmutable; el libro guarda esa ruta relativa. La API mantiene
   `coverUrl` opcional (compatibilidad con el enunciado); es el formulario del frontend el que exige la imagen. Si la
-  subida funciona pero falla la creación del libro, el archivo queda huérfano en disco (aceptable para este alcance).
+  subida funciona pero falla la creación del libro, la imagen queda sin usar en la base (aceptable para este alcance).
